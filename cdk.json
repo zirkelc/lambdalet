@@ -1,5 +1,5 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/lambdalet.ts",
+  "app": "pnpm tsx bin/lambdalet.ts",
   "watch": {
     "include": [
       "**"
