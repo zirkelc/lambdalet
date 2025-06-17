@@ -6,7 +6,7 @@ import { parser } from '@aws-lambda-powertools/parser/middleware';
 import middy from '@middy/core';
 import { extractMainContent } from '../libs/bedrock.js';
 import { toMarkdown } from '../libs/markdown.js';
-import { addContent, createPage } from '../libs/notion.js';
+import { addContent, createPage, updateStatus } from '../libs/notion.js';
 import { getObject } from '../libs/s3.js';
 import { ApiGatewayRequestSchema, SqsMessageSchema } from '../schema.js';
 
@@ -71,6 +71,14 @@ export const handler = middy()
 					error,
 					markdown,
 					url,
+				});
+
+				/**
+				 * Set the status to failed.
+				 */
+				await updateStatus({
+					pageId,
+					status: 'Failed',
 				});
 			}
 

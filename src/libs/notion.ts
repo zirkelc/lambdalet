@@ -2,8 +2,13 @@ import { Logger } from '@aws-lambda-powertools/logger';
 import { Client, type BlockObjectRequest } from '@notionhq/client';
 import { markdownToBlocks } from '@tryfabric/martian';
 import { NotionEnvSchema } from '../schema.js';
+import type { UpdateDatabaseParameters } from '@notionhq/client/build/src/api-endpoints.js';
 
 const logger = new Logger();
+
+type UpdateDatabaseProperties = UpdateDatabaseParameters['properties'];
+
+type NotionStatus = 'Not started' | 'In progress' | 'Done' | 'Failed';
 
 const createClient = () => {
 	const env = NotionEnvSchema.parse(process.env);
@@ -57,6 +62,7 @@ const initializeDatabase = async () => {
 	if (!database) throw new Error(`Database does not exist: ${databaseId}`);
 
 	const properties = Object.values(database.properties);
+	const updateProperties: UpdateDatabaseProperties = {};
 
 	/**
 	 * Create default properties if they don't exist.
@@ -65,31 +71,59 @@ const initializeDatabase = async () => {
 	 * - Last Updated
 	 */
 	if (!properties.find((property) => property.type === 'url')) {
-		properties.push({
-			id: 'URL',
+		updateProperties.URL = {
 			name: 'URL',
 			type: 'url',
 			description: null,
 			url: {},
-		});
+		};
 	}
 	if (!properties.find((property) => property.type === 'created_time')) {
-		properties.push({
-			id: 'Created At',
+		updateProperties.CreatedAt = {
 			name: 'Created At',
 			type: 'created_time',
 			description: null,
 			created_time: {},
-		});
+		};
 	}
 	if (!properties.find((property) => property.type === 'last_edited_time')) {
-		properties.push({
-			id: 'Last Updated',
+		updateProperties.LastUpdated = {
 			name: 'Last Updated',
 			type: 'last_edited_time',
 			description: null,
 			last_edited_time: {},
-		});
+		};
+	}
+	if (!properties.find((property) => property.type === 'status')) {
+		updateProperties.Status = {
+			name: 'Status',
+			type: 'select',
+			description: null,
+			select: {
+				options: [
+					{
+						name: 'Not started',
+						color: 'default',
+						description: null,
+					},
+					{
+						name: 'In progress',
+						color: 'blue',
+						description: null,
+					},
+					{
+						name: 'Done',
+						color: 'green',
+						description: null,
+					},
+					{
+						name: 'Failed',
+						color: 'red',
+						description: null,
+					},
+				],
+			},
+		};
 	}
 
 	/**
@@ -97,9 +131,7 @@ const initializeDatabase = async () => {
 	 */
 	await notion.databases.update({
 		database_id: databaseId,
-		properties: Object.fromEntries(
-			properties.map((property) => [property.id, property]),
-		),
+		properties: updateProperties,
 	});
 };
 
@@ -161,6 +193,11 @@ export const createPage = async ({ title, url }: CreatePage) => {
 			URL: {
 				url,
 			},
+			Status: {
+				select: {
+					name: 'In progress',
+				},
+			},
 		},
 	});
 
@@ -189,4 +226,32 @@ export const addContent = async ({ pageId, markdown }: AddContent) => {
 			children,
 		});
 	}
+
+	await updateStatus({
+		pageId,
+		status: 'Done',
+	});
+};
+
+type UpdateStatus = {
+	pageId: string;
+	status: NotionStatus;
+};
+
+/**
+ * Update the status of the page.
+ */
+export const updateStatus = async ({ pageId, status }: UpdateStatus) => {
+	const { notion } = createClient();
+
+	await notion.pages.update({
+		page_id: pageId,
+		properties: {
+			Status: {
+				select: {
+					name: status,
+				},
+			},
+		},
+	});
 };

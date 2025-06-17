@@ -133,7 +133,6 @@ export class LambdaletStack extends cdk.Stack {
 			},
 			throttle: {
 				rateLimit: 10,
-				burstLimit: 2,
 			},
 		});
 
