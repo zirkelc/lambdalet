@@ -2,12 +2,15 @@ import { z } from 'zod';
 
 /**
  * API Gateway request schema.
+ * Use only string values because the request is sent as form data.
  */
 export type ApiGatewayRequest = z.infer<typeof ApiGatewayRequestSchema>;
 export const ApiGatewayRequestSchema = z.object({
 	url: z.string().url(),
 	html: z.string(),
 	title: z.string(),
+	mode: z.enum(['document', 'selection']).default('document'),
+	invoke: z.enum(['fetch', 'form-blank', 'form-self']).default('fetch'),
 });
 
 /**

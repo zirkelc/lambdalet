@@ -7,8 +7,12 @@ import middy from '@middy/core';
 import { extractMainContent } from '../libs/bedrock.js';
 import { toMarkdown } from '../libs/markdown.js';
 import { addContent, createPage, updateStatus } from '../libs/notion.js';
-import { getObject } from '../libs/s3.js';
-import { ApiGatewayRequestSchema, SqsMessageSchema } from '../schema.js';
+import { getObject, putObject } from '../libs/s3.js';
+import {
+	type ApiGatewayRequest,
+	ApiGatewayRequestSchema,
+	SqsMessageSchema,
+} from '../schema.js';
 
 const logger = new Logger();
 
@@ -41,12 +45,16 @@ export const handler = middy()
 				schema: ApiGatewayRequestSchema,
 			});
 
-			const { html, url, title } = request;
+			logger.info(`Downloaded request payload from S3: s3://${bucket}/${key}`);
+
+			const { html, url, title, mode } = request;
+
+			logger.info(`Processing request: ${url}`);
 
 			/**
 			 * Convert the HTML to Markdown.
 			 */
-			const markdown = toMarkdown({ html, url });
+			let markdown = toMarkdown({ html, url });
 
 			/**
 			 * Create a new page in Notion.
@@ -56,30 +64,39 @@ export const handler = middy()
 				url,
 			});
 
+			logger.info(`Created page in Notion: ${pageId}`);
+
 			/**
 			 * Try to extract the main content from the markdown.
-			 * Initialize content with the existing markdown in case of failure.
+			 * Only relevant if the request contains a full document.
 			 */
-			let content = markdown;
-			try {
-				content = await extractMainContent({
-					markdown,
-					url,
-				});
-			} catch (error) {
-				logger.error('Failed to extract main content', {
-					error,
-					markdown,
-					url,
-				});
+			if (mode === 'document') {
+				try {
+					logger.info(`Extracting main content from markdown`);
 
-				/**
-				 * Set the status to failed.
-				 */
-				await updateStatus({
-					pageId,
-					status: 'Failed',
-				});
+					markdown = await extractMainContent({
+						markdown,
+						url,
+					});
+
+					logger.info(`Completed extracting main content from markdown`);
+				} catch (error) {
+					logger.error('Failed to extract main content', {
+						error,
+						markdown,
+						url,
+					});
+
+					/**
+					 * Set the status to failed.
+					 */
+					await updateStatus({
+						pageId,
+						status: 'Failed',
+					});
+
+					logger.info(`Updated status to failed`);
+				}
 			}
 
 			/**
@@ -87,7 +104,19 @@ export const handler = middy()
 			 */
 			await addContent({
 				pageId,
-				markdown: content,
+				markdown,
 			});
+
+			logger.info(`Added content to Notion page: ${pageId}`);
+
+			/**
+			 * Update the status to done.
+			 */
+			await updateStatus({
+				pageId,
+				status: 'Done',
+			});
+
+			logger.info(`Updated status to done`);
 		}
 	});

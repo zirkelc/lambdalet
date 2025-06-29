@@ -1,97 +1,192 @@
-# Lambdalet
+# Lambdalet.AI
 
-create bookmark
-browser.bookmarks.create({
-  title: "bookmarks.create() on MDN",
-  url: "https://developer.mozilla.org/Add-ons/WebExtensions/API/bookmarks/create",
-})
 
 ## About
+> Reinventing the bookmarklet.
 
-Lambdalet (*Lambda* + ~~bookmark~~*let*) is a DIY bookmarking and read-it-later service. 
-It consists of a [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) that invokes a Lambda function with the current page's content and URL. The Lambda function uses an LLM to extract the pages' main content and saves it to a Notion database.
+Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a bookmarklet to invoke an AWS Lambda function with a webpage's content. The function uses an LLM to extract the page's main content and saves it to a Notion database.
 
 ## Try It
 
-You can try it without deploying anything. Just follow the steps below:
+You can try Lambdalet.AI without deploying anything. Follow these steps:
 
-1. Open my shared [Notion database](https://www.notion.so/zirkelc/20c00d5ef00e802a8cd1de77eafebc4f?v=20c00d5ef00e80c8adb5000cca955976&p=20d00d5ef00e81029accc1ca2b4888d0&pm=s). All bookmark are saved into this database.
+1. Open the shared [Notion database](https://www.notion.so/zirkelc/20c00d5ef00e802a8cd1de77eafebc4f?v=20c00d5ef00e80c8adb5000cca955976&p=20d00d5ef00e81029accc1ca2b4888d0&pm=s) in a new tab. This is where all saved pages will appear.
 
-2. Create a new bookmark in your browser with the following URL:
+2. Create a new bookmark in your browser using the JavaScript code below as the URL.
 
-```js
-javascript: (async () => { 
-  const response = await fetch("https://paip1r3t7j.execute-api.eu-west-1.amazonaws.com/prod/", {
-    method: "POST",
-    body: JSON.stringify({
-      html: document.body.innerHTML,
-      url: window.location.href,
-      title: document.title,
-    }),
-    headers: {
-			'content-type': 'application/json',
-			'x-api-key': 'W76GK763928L8g8TcMdMU8Dw2rQ4EZwv3eqf4Yp0',
-    },
-  });  
-  alert("sent"); 
-  void 0 
-}
-)();
-```
+    <details>
+    <summary>JavaScript bookmarklet</summary>
 
-3. Open a page of your interest, for example [Invoking a Lambda function using an Amazon API Gateway endpoint](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html).
+    ```js
+    javascript: (async () => {
+      const apiKey = 'W76GK763928L8g8TcMdMU8Dw2rQ4EZwv3eqf4Yp0';
+      const apiUrl = 'https://paip1r3t7j.execute-api.eu-west-1.amazonaws.com/prod/';
+      const url = `${apiUrl}?apiKey=${apiKey}`;
 
-4. Click on the bookmark you created.
+      function getSelectedHTML() {
+        if (window.getSelection) {
+          const selection = window.getSelection();
+          if (selection.rangeCount) {
+            const container = document.createElement('div');
+            for (let i = 0; i < selection.rangeCount; ++i) {
+              container.appendChild(selection.getRangeAt(i).cloneContents());
+            }
+            return container.innerHTML;
+          }
+        }
+        if (document.selection && document.selection.type === 'Text') {
+          return document.selection.createRange().htmlText;
+        }
 
-5. Check the Notion database from the first step. You should see a new entry for your page. The content extraction runs asynchronously, so it may take a few seconds to minutes until the content appears, depending on the page's size.
+        return undefined;
+      }
+
+      const selectedHTML = getSelectedHTML();
+      const hasSelection = !!selectedHTML;
+
+      const data = {
+        html: hasSelection ? selectedHTML : document.body.innerHTML,
+        mode: hasSelection ? 'selection' : 'document',
+        url: window.location.href,
+        title: document.title,
+      };
+
+      try {
+        await fetch(url, {
+          method: 'POST',
+          body: new FormData({
+            ...data,
+            invoke: 'fetch',
+          }),
+        });
+      } catch (error) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = '_blank';
+        document.body.appendChild(form);
+
+        Object.entries({
+          ...data,
+          invoke: 'form-blank',
+        }).forEach(([key, value]) => {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        });
+
+        form.submit();
+
+        document.body.removeChild(form);
+      }
+      alert(`Saved ${hasSelection ? 'text selection' : 'full page'} to Lambdalet.AI`);
+    })();
+    ```
+    </details>
+
+3. Go to any web page you want to save, like this one on [Invoking a Lambda function using an Amazon API Gateway endpoint](https://docs.aws.amazon.com/lambda/latest/dg/services-apigateway.html).
 
 > [!NOTE]
-> If a page with the same URL already exists in the database, the content will be updated.
+> Requests are deduplicated by URL, so clicking the bookmarklet multiple times on the same page won't create duplicate entries.
+
+4. Click the bookmarklet you just created.
+
+> [!NOTE]
+> The bookmarklet runs in the context of the current page. A page's Content Security Policy (CSP) may block it. If this happens, the bookmarklet falls back to submitting a form in a new window which closes itself automatically.
+
+5. Check the Notion database. A new entry for your page will appear. Content extraction is asynchronous, so it might take a few moments for the content to show up, depending on the page size.
+
+> [!NOTE]
+> The URL is the unique identifier for each page. If you save a page that already exists, its content will be updated.
 
 
 ## Architecture
 
+![Architecture](./architecture.svg)
 
+### Description
+
+1. The user clicks the JavaScript **Bookmarklet** in the browser on a page she wants to bookmark.
+
+2. The JavaScript bookmarklet sends a POST request with the current page's HTML, URL and title to the **REST API** (API Gateway). It first uses the `fetch` API to send the request. To handle pages with a restrictive Content Security Policy (CSP) that might block `fetch`, the bookmarklet has a fallback that submits a form in a temporary new window.
+
+3. The **REST API** uses a **Custom authorizer function** to validate the request. The authorizer extracts an API key from the request's query string. An API key in the query string is required to support the form submission fallback, which does not allow setting custom HTTP headers like `x-api-key`.
+
+4. The **REST API** validates the API key received from the **Custom authorizer** against a usage plan. If the API key is valid and usage is permitted, the **REST API** invokes the **Queue request function** (Lambda) with the HTTP request as payload.
+
+5. The **Queue request function** parses the HTTP request and uploads the payload (HTML, URL and title) to the **Payload bucket** (S3), because the payload size can easily exceed the 256KB limit for SQS messages. The URL is hashed to create a short and deterministic key for the S3 object, so that subsequent requests for the same URL will not create multiple objects.
+
+6. The **Queue request function** sends the S3 bucket and object key as a message to the **Request queue** (SQS). The queue deduplicates messages, so that multiple clicks on the bookmarklet for the same URL will not create multiple requests.
+
+7. The **Request queue** is configured to trigger the **Process request function** (Lambda) for each new message. The event source mapping uses a batch size of 1, ensuring each function invocation handles a single request. This helps avoid timeouts when processing large pages.
+
+8. The **Process request function** downloads the payload (HTML, URL and title) from the **Payload bucket** (S3) using the key from the SQS message.
+
+9. The **Process request function** checks the Notion database for a page with the same URL. If a page exists, it's archived. This prevents issues with Notion's API rate limits that can occur when deleting a page's content block by block. A new Notion page is then created with the title and URL, and its status is set to "in progress".
+
+10. Then the **Process request function** converts the HTML to markdown. If the HTML is a full page, it invokes **Claude 3.7 Sonnet** (Bedrock) with the markdown to extract the main content. The model is called with markdown instead of HTML due to token limits. In case the HTML comes from a text selection, the converted markdown will be used as content.
+
+11. After receiving the response from the model, the **Process request function** appends the extracted content to the Notion page and sets the status to "done". If content extraction fails, the raw HTML-to-markdown conversion is added to the page and the status is set to "failed".
 
 
 ## Development
-The following steps describe hwo you can set up your own instance of the app. A AWS account and Notion workspace are required.
+The following steps describe how you can set up your own instance of the app. An AWS account and Notion workspace are required.
 
-### Create a Notion page and database
+1. **Create an internal Notion integration**
 
-Create a new Notion page via the Notion app and then create a new full-page database within this page. Note that you cannot create top-level databases in the Notion app, but you can move the database out of the page to be top-level. The database properties are automatically initialized on the first run. Take a note of the database ID that you can find in the URL of the database page.
+    Go to the [Notion integrations page](https://www.notion.so/profile/integrations) and create a new internal integration for your workspace. Note the internal integration secret. See [Create your integration in Notion](https://developers.notion.com/docs/create-a-notion-integration#create-your-integration-in-notion) for more details.
 
-[![Notion database ID](https://files.readme.io/64967fd-small-62e5027-notion_database_id.png)](https://developers.notion.com/reference/retrieve-a-database#:~:text=To%20find%20a%20database%20ID%2C%20navigate%20to%20the%20database%20URL%20in%20your%20Notion%20workspace.%20The%20ID%20is%20the%20string%20of%20characters%20in%20the%20URL%20that%20is%20between%20the%20slash%20following%20the%20workspace%20name%20(if%20applicable)%20and%20the%20question%20mark.%20The%20ID%20is%20a%2032%20characters%20alphanumeric%20string)
+2. **Create a Notion page and database**
 
-### Create an internal Notion integration
+    Create a new full-page database within a Notion page. Note that you cannot create top-level databases in the Notion app, but you can move the database to the top level after creation if you prefer. The required database properties are created automatically on the first run. Note the database ID from its URL.
 
-Go to the [Notion integrations](https://www.notion.so/profile/integrations) and create a new internal integration for your workspace. Take a note of the internal integration secret. On the access tab, you need to allow the integration to access the database you created in the previous step.
+    [![Notion database ID](https://files.readme.io/64967fd-small-62e5027-notion_database_id.png)](https://developers.notion.com/reference/retrieve-a-database#:~:text=To%20find%20a%20database%20ID%2C%20navigate%20to%20the%20database%20URL%20in%20your%20Notion%20workspace.%20The%20ID%20is%20the%20string%20of%20characters%20in%20the%20URL%20that%20is%20between%20the%20slash%20following%20the%20workspace%20name%20(if%20applicable)%20and%20the%20question%20mark.%20The%20ID%20is%20a%2032%20characters%20alphanumeric%20string)
 
-### Environment variables
+3. **Enable access for internal integration**
 
-Rename the [`.env.template`](./.env.template) file to `.env` and fill the variables with the values you obtained in the previous steps.
+    Share the database with your new integration by adding it as a connection in the Notion page's settings.
+    See [Give your integration page permissions](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) for more details.
 
-### Deploy project
+    [![Notion integration access](https://files.readme.io/fefc809-permissions.gif)](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions)
 
-Clone the repository and install the dependencies. Then run the `deploy` script to deploy the project. Take a note of the API Gateway URL and API key ID output.
+4. **Clone project**
 
-```bash
-pnpm install
-pnpm deploy
-```
+    Clone the repository and install the dependencies.
 
-### Create a bookmarklet
+    ```bash
+    pnpm install
+    ```
 
-Use the existing [bookmarklet](./bookmarklet.js) as template and replace the URL and API key with the values from the deployed project. To get the actual API key, you need to go to the API Gateway console, select the API key ID and click on the "Show" button.
+5. **Environment variables**
+
+    Rename the `.env.template` file to `.env` and add the `NOTION_TOKEN` and `NOTION_DATABASE_ID` you noted earlier.
+
+6. **Deploy project**
+
+    Run the `deploy` script to deploy the project. Note the API URL and API key from the output.
+
+    ```bash
+    pnpm deploy
+    ```
+
+7. **Create a bookmarklet**
+
+    Create a new bookmarklet using the code from the [Try It](#try-it) section as a template. Replace the API URL and API key with the values from your deployment. 
 
 
 ## Issues and Limitations
 
-The bookmarklet runs in the context of the current page. If the current page has a [Content Security Policy (CSP)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP), the `fetch` call might be blocked. Check the browser console for errors.
+- **Content Security Policy (CSP)**: The bookmarklet executes in the context of the current page. If the page has a restrictive CSP, the `fetch` call might be blocked. Check your browser's developer console for errors if the bookmarklet appears to do nothing.
 
+- **LLM input/output token limit**: The application uses [Claude Sonnet 3.7](https://docs.anthropic.com/en/docs/about-claude/models/overview#model-comparison-table) for the main content extraction. This LLM has context window of 200K tokens (~150K words) and max output limit of 64K tokens (~48K words). If the pages' content is too long, the content might not fit into the context window or the output gets truncated.
 
+- **Notion API Limits**: The Notion API has a rate limit of about three requests per second. It also limits requests to 100 block children and two levels of nesting at a time. The application handles these limits by splitting content into multiple requests, but very large pages may still encounter rate limiting.
 
 ## Future Ideas
 
-- Use an LLM to create a summary of the pages' content.
-- Save page's content to other apps like Obsidian or Roam Research.
+- Extract OpenGraph metadata from the page and save it as properties on the Notion page.
+- Create an AI-generated summary of the page's content.
+- Allow editing content before saving it to the database.
+- Add support for other applications like Obsidian or Roam Research.

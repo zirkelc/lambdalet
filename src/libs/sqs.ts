@@ -18,7 +18,7 @@ export const sendMessage = async <TMessage extends Record<string, unknown>>({
 	deduplicationId,
 	message,
 }: SendMessageInput<TMessage>) => {
-	await sqs.send(
+	const response = await sqs.send(
 		new SendMessageCommand({
 			QueueUrl: queueUrl,
 			MessageBody: JSON.stringify(message),
@@ -26,4 +26,8 @@ export const sendMessage = async <TMessage extends Record<string, unknown>>({
 			MessageDeduplicationId: deduplicationId,
 		}),
 	);
+
+	if (!response.MessageId) throw new Error('Failed to send message to SQS');
+
+	return response.MessageId;
 };

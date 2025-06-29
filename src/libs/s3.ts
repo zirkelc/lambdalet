@@ -32,25 +32,34 @@ export const getObject = async <TSchema extends ZodSchema>({
 	return schema.parse(JSON.parse(json));
 };
 
-type PutObjectInput<TObject extends Record<string, unknown>> = {
+type PutObjectInput<
+	TObject extends Record<string, unknown>,
+	TMetadata extends Record<string, string> | undefined = undefined,
+> = {
 	bucket: string;
 	key: string;
 	object: TObject;
+	metadata?: TMetadata;
 };
 
 /**
  * Put an object to S3 and convert it to JSON.
  */
-export const putObject = async <TObject extends Record<string, unknown>>({
+export const putObject = async <
+	TObject extends Record<string, unknown>,
+	TMetadata extends Record<string, string> | undefined = undefined,
+>({
 	bucket,
 	key,
 	object,
-}: PutObjectInput<TObject>) => {
+	metadata,
+}: PutObjectInput<TObject, TMetadata>) => {
 	await s3.send(
 		new PutObjectCommand({
 			Bucket: bucket,
 			Key: key,
 			Body: JSON.stringify(object),
+			Metadata: metadata,
 		}),
 	);
 };

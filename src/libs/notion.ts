@@ -3,6 +3,7 @@ import { Client, type BlockObjectRequest } from '@notionhq/client';
 import { markdownToBlocks } from '@tryfabric/martian';
 import { NotionEnvSchema } from '../schema.js';
 import type { UpdateDatabaseParameters } from '@notionhq/client/build/src/api-endpoints.js';
+import { appendBlocks } from 'notion-helper';
 
 const logger = new Logger();
 
@@ -10,7 +11,7 @@ type UpdateDatabaseProperties = UpdateDatabaseParameters['properties'];
 
 type NotionStatus = 'Not started' | 'In progress' | 'Done' | 'Failed';
 
-const createClient = () => {
+export const createClient = () => {
 	const env = NotionEnvSchema.parse(process.env);
 
 	const notion = new Client({
@@ -40,11 +41,51 @@ export const toBlocks = ({ markdown }: ToBlocks): BlockObjectRequest[] => {
 	return blocks as BlockObjectRequest[];
 };
 
-const chunk = <T>(array: T[], size: number) => {
-	return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-		array.slice(i * size, (i + 1) * size),
-	);
-};
+// export const getChildren = (
+// 	block: BlockObjectRequest,
+// ): BlockObjectRequest[] => {
+// 	const type = block.type;
+
+// 	if (type && type in block) {
+// 		const properties = block[type as keyof BlockObjectRequest];
+
+// 		if (
+// 			properties &&
+// 			typeof properties === 'object' &&
+// 			properties &&
+// 			'children' in properties &&
+// 			Array.isArray(properties.children)
+// 		) {
+// 			return properties.children as BlockObjectRequest[];
+// 		}
+// 	}
+
+// 	return [];
+// };
+
+// export const isExcessiveNesting = (block: BlockObjectRequest): boolean => {
+// 	const children = getChildren(block);
+
+// 	for (const child of children) {
+// 		const children = getChildren(child);
+
+// 		for (const child of children) {
+// 			const children = getChildren(child);
+
+// 			if (children.length > 0) {
+// 				return true;
+// 			}
+// 		}
+// 	}
+
+// 	return false;
+// };
+
+// const chunk = <T>(array: T[], size: number) => {
+// 	return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+// 		array.slice(i * size, (i + 1) * size),
+// 	);
+// };
 
 /**
  * Initialize the database with the required properties.
@@ -70,7 +111,7 @@ const initializeDatabase = async () => {
 	 * - Created At
 	 * - Last Updated
 	 */
-	if (!properties.find((property) => property.type === 'url')) {
+	if (!properties.find((property) => property.name === 'URL')) {
 		updateProperties.URL = {
 			name: 'URL',
 			type: 'url',
@@ -78,7 +119,7 @@ const initializeDatabase = async () => {
 			url: {},
 		};
 	}
-	if (!properties.find((property) => property.type === 'created_time')) {
+	if (!properties.find((property) => property.name === 'Created At')) {
 		updateProperties.CreatedAt = {
 			name: 'Created At',
 			type: 'created_time',
@@ -86,7 +127,7 @@ const initializeDatabase = async () => {
 			created_time: {},
 		};
 	}
-	if (!properties.find((property) => property.type === 'last_edited_time')) {
+	if (!properties.find((property) => property.name === 'Last Updated')) {
 		updateProperties.LastUpdated = {
 			name: 'Last Updated',
 			type: 'last_edited_time',
@@ -94,7 +135,7 @@ const initializeDatabase = async () => {
 			last_edited_time: {},
 		};
 	}
-	if (!properties.find((property) => property.type === 'status')) {
+	if (!properties.find((property) => property.name === 'Status')) {
 		updateProperties.Status = {
 			name: 'Status',
 			type: 'select',
@@ -215,21 +256,12 @@ type AddContent = {
 export const addContent = async ({ pageId, markdown }: AddContent) => {
 	const { notion } = createClient();
 
-	// TODO fix
-	const blocks = toBlocks({ markdown }).filter(
-		(block) => block.type !== 'bulleted_list_item',
-	);
+	const blocks = toBlocks({ markdown });
 
-	for (const children of chunk(blocks, 100)) {
-		await notion.blocks.children.append({
-			block_id: pageId,
-			children,
-		});
-	}
-
-	await updateStatus({
-		pageId,
-		status: 'Done',
+	await appendBlocks({
+		block_id: pageId,
+		children: blocks,
+		client: notion,
 	});
 };
 
