@@ -1,8 +1,8 @@
 # Lambdalet.AI
 
-![Lambdalet.AI](./lambdalet.jpeg)
+![Lambdalet.AI](./images/banner.jpeg)
 
-Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a bookmarklet to invoke an AWS Lambda function with a page's content. The function uses an LLM to extract the page's main content and saves it to a Notion database.
+Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a dynamic javascript bookmark - a so called bookmarklet - to send the current page's HTML to an AWS Lambda function. The Lambda function invokes a Large Language Model on Bedrock to extract the page's main content and saves it to a Notion database. The Notion database stores all our bookmarks and allows us to find bookmarks by title, URL and even their content.
 
 ## Try It
 
@@ -92,7 +92,7 @@ You can try Lambdalet.AI without deploying anything. Follow these steps:
 
 ## Architecture
 
-![Architecture](./architecture.svg)
+![Architecture](./images/architecture.svg)
 
 ### Description
 
@@ -123,20 +123,24 @@ You can try Lambdalet.AI without deploying anything. Follow these steps:
 
 The following steps describe how you can set up your own instance of the app. An AWS account and Notion workspace are required.
 
-1.  **Create Notion Integration**: Go to the [Notion integrations page](https://www.notion.so/profile/integrations) and create a new internal integration for your workspace. Note the internal integration secret. See [Create your integration in Notion](https://developers.notion.com/docs/create-a-notion-integration#create-your-integration-in-notion) for more details.
+1.  **Create Notion Integration**: Go to the [Notion integrations page](https://www.notion.so/profile/integrations) and create a new internal integration for your workspace. Note the internal integration secret. 
+
+    Docs: [Create your integration in Notion](https://developers.notion.com/docs/create-a-notion-integration#create-your-integration-in-notion)
 
 2.  **Create Notion Database**: Create a new full-page database within a Notion page. Note that you cannot create top-level databases in the Notion app, but you can move the database to the top level after creation if you prefer. The required database properties are created automatically on the first run. Note the database ID from its URL.
 
     [![Notion database ID](https://files.readme.io/64967fd-small-62e5027-notion_database_id.png)](https://developers.notion.com/reference/retrieve-a-database#:~:text=To%20find%20a%20database%20ID%2C%20navigate%20to%20the%20database%20URL%20in%20your%20Notion%20workspace.%20The%20ID%20is%20the%20string%20of%20characters%20in%20the%20URL%20that%20is%20between%20the%20slash%20following%20the%20workspace%20name%20(if%20applicable)%20and%20the%20question%20mark.%20The%20ID%20is%20a%2032%20characters%20alphanumeric%20string)
+    Docs: [Where can I find my database's ID?](https://developers.notion.com/docs/working-with-databases#:~:text=Where%20can%20I%20find%20my%20database%27s%20ID%3F)
 
 3.  **Enable Integration Access**: Share the database with your new integration by adding it as a connection in the Notion page's settings.
-    See [Give your integration page permissions](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions) for more details.
 
     [![Notion integration access](https://files.readme.io/fefc809-permissions.gif)](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions)
 
+    Docs: [Give your integration page permissions](https://developers.notion.com/docs/create-a-notion-integration#give-your-integration-page-permissions)
+
 4.  **Clone Project**: Clone the repository and install the dependencies.
 
-    ```bash
+    ```sh
     pnpm install
     ```
 
@@ -144,11 +148,11 @@ The following steps describe how you can set up your own instance of the app. An
 
 6.  **Deploy Project**: Run the `deploy` script to deploy the project. Note the API URL and API key from the output.
 
-    ```bash
+    ```sh
     pnpm deploy
     ```
 
-7.  **Create Bookmarklet**: Create a new bookmarklet using the code from the [Try It](#try-it) section as a template. Replace the API URL and API key with the values from your deployment.
+7.  **Create Bookmarklet**: Create a new bookmark in your browser and use the code from [bookmarklet.js](./bookmarklets/bookmarklet.js) as URL. Replace the API URL and API key with the values from your deployment.
 
 ## Issues and Limitations
 
