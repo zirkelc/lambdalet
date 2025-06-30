@@ -152,10 +152,10 @@ The following steps describe how you can set up your own instance of the app. An
 
 5.  **Update Environment Variables**: Rename the `.env.template` file to `.env` and add the `NOTION_TOKEN` and `NOTION_DATABASE_ID` you noted earlier.
 
-6.  **Deploy Project**: Run the `deploy` script to deploy the project. Note the API URL and API key from the output.
+6.  **Deploy Project**: Run `cdk deploy` to deploy the project. Note the API URL and API key from the output.
 
     ```sh
-    pnpm deploy
+    pnpm cdk deploy
     ```
 
 7.  **Create Bookmarklet**: Create a new bookmark in your browser and use the code from [bookmarklet.js](./bookmarklets/bookmarklet.js) as URL. Replace the API URL and API key with the values from your deployment.
