@@ -7,12 +7,8 @@ import middy from '@middy/core';
 import { extractMainContent } from '../libs/bedrock.js';
 import { toMarkdown } from '../libs/markdown.js';
 import { addContent, createPage, updateStatus } from '../libs/notion.js';
-import { getObject, putObject } from '../libs/s3.js';
-import {
-	type ApiGatewayRequest,
-	ApiGatewayRequestSchema,
-	SqsMessageSchema,
-} from '../schema.js';
+import { getObject } from '../libs/s3.js';
+import { ApiGatewayRequestSchema, SqsMessageSchema } from '../schema.js';
 
 const logger = new Logger();
 

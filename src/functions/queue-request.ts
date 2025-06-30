@@ -1,20 +1,18 @@
+import { Logger } from '@aws-lambda-powertools/logger';
+import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { ApiGatewayEnvelope } from '@aws-lambda-powertools/parser/envelopes';
 import { parser } from '@aws-lambda-powertools/parser/middleware';
 import middy from '@middy/core';
 import type { APIGatewayProxyResult } from 'aws-lambda';
 import { createHash, randomUUID } from 'node:crypto';
+import z from 'zod';
 import { putObject } from '../libs/s3.js';
 import { sendMessage } from '../libs/sqs.js';
 import {
-	type ApiGatewayRequest,
 	ApiGatewayRequestSchema,
 	AwsEnvSchema,
 	type SqsMessage,
 } from '../schema.js';
-import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import { Logger } from '@aws-lambda-powertools/logger';
-import { JSONStringified } from '@aws-lambda-powertools/parser/helpers';
-import z from 'zod';
 
 const logger = new Logger();
 
@@ -127,9 +125,6 @@ export const handler = middy()
 			key,
 		});
 
-		// TODO temporary
-		const uuid = randomUUID();
-
 		/**
 		 * Send the request to SQS to deduplicate the request and process it asynchronously.
 		 * Using the hash as the group ID will allow multiple requests to be processed in parallel,
@@ -137,8 +132,8 @@ export const handler = middy()
 		 */
 		const messageId = await sendMessage<SqsMessage>({
 			queueUrl,
-			groupId: uuid,
-			deduplicationId: uuid,
+			groupId: hash,
+			deduplicationId: hash,
 			message: {
 				bucket,
 				key,

@@ -1,11 +1,8 @@
-import { Logger } from '@aws-lambda-powertools/logger';
 import { Client, type BlockObjectRequest } from '@notionhq/client';
-import { markdownToBlocks } from '@tryfabric/martian';
-import { NotionEnvSchema } from '../schema.js';
 import type { UpdateDatabaseParameters } from '@notionhq/client/build/src/api-endpoints.js';
+import { markdownToBlocks } from '@tryfabric/martian';
 import { appendBlocks } from 'notion-helper';
-
-const logger = new Logger();
+import { NotionEnvSchema } from '../schema.js';
 
 type UpdateDatabaseProperties = UpdateDatabaseParameters['properties'];
 
@@ -40,52 +37,6 @@ export const toBlocks = ({ markdown }: ToBlocks): BlockObjectRequest[] => {
 
 	return blocks as BlockObjectRequest[];
 };
-
-// export const getChildren = (
-// 	block: BlockObjectRequest,
-// ): BlockObjectRequest[] => {
-// 	const type = block.type;
-
-// 	if (type && type in block) {
-// 		const properties = block[type as keyof BlockObjectRequest];
-
-// 		if (
-// 			properties &&
-// 			typeof properties === 'object' &&
-// 			properties &&
-// 			'children' in properties &&
-// 			Array.isArray(properties.children)
-// 		) {
-// 			return properties.children as BlockObjectRequest[];
-// 		}
-// 	}
-
-// 	return [];
-// };
-
-// export const isExcessiveNesting = (block: BlockObjectRequest): boolean => {
-// 	const children = getChildren(block);
-
-// 	for (const child of children) {
-// 		const children = getChildren(child);
-
-// 		for (const child of children) {
-// 			const children = getChildren(child);
-
-// 			if (children.length > 0) {
-// 				return true;
-// 			}
-// 		}
-// 	}
-
-// 	return false;
-// };
-
-// const chunk = <T>(array: T[], size: number) => {
-// 	return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-// 		array.slice(i * size, (i + 1) * size),
-// 	);
-// };
 
 /**
  * Initialize the database with the required properties.

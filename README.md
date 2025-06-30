@@ -8,7 +8,7 @@ Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and rea
 
 You can try Lambdalet.AI without deploying anything. Follow these steps:
 
-1.  **Open Notion Database**: Open the shared [Notion database](https://www.notion.so/zirkelc/20c00d5ef00e802a8cd1de77eafebc4f?v=20c00d5ef00e80c8adb5000cca955976&p=20d00d5ef00e81029accc1ca2b4888d0&pm=s) in a new tab. This is where all saved pages will appear.
+1.  **Open Notion Database**: Open the shared [Notion database](https://zirkelc.notion.site/20c00d5ef00e802a8cd1de77eafebc4f?v=20c00d5ef00e80c8adb5000cca955976) in a new tab. This is where all saved pages will appear.
 
 2.  **Create Bookmarklet**: Create a new bookmark in your browser using the JavaScript code below as the URL.
 

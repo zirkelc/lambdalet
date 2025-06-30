@@ -63,11 +63,13 @@ export const toMarkdown = ({ html, url }: ToMarkdown) => {
 		},
 	});
 
+	/**
+	 * Custom rule to omit empty list items.
+	 */
 	turndownService.addRule('listItem', {
 		filter: 'li',
 
 		replacement: (content, node, options) => {
-			// Ignore empty list items
 			if (!content.trim()) return '';
 
 			const element = node as HTMLElement;

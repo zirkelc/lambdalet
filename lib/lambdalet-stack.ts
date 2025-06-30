@@ -253,6 +253,9 @@ fields @timestamp, @message, @logStream, @log
 			]),
 		});
 
+		/**
+		 * Output the API URL and API key.
+		 */
 		new cdk.CfnOutput(this, 'ApiUrl', {
 			value: api.url,
 		});
