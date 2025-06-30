@@ -92,7 +92,7 @@ You can try Lambdalet.AI without deploying anything. Follow these steps:
 
 ## Architecture
 
-![Architecture](./images/architecture.svg)
+![Architecture](./images/architecture.jpeg)
 
 ### Description
 
