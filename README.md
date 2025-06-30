@@ -90,6 +90,12 @@ You can try Lambdalet.AI without deploying anything. Follow these steps:
 
 5.  **Verify Result**: Check the Notion database. A new entry for your page will appear. Content extraction is asynchronous, so it might take a few moments for the content to show up, depending on the page size. The URL is the unique identifier for each page. If you save a page that already exists, its content will be updated.
 
+
+| Full page  | Selection |
+| ------------- | ------------- |
+| ![full-page](https://github.com/user-attachments/assets/89b91a8b-b427-48fa-9350-a8910bb91a2c)  | ![text-selection](https://github.com/user-attachments/assets/2c74deea-6cd7-4bf2-8ce8-95bd952d10ab)  |
+| Saves the full page to Notion and extracts the main content with an LLM while keeping the original structure (links, images, code, formatting) intact | Saves only the selected text to Notion without LLM while keeping the original structure (links, images, code, formatting) intact |
+
 ## Architecture
 
 ![Architecture](./images/architecture.jpeg)
