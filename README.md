@@ -152,6 +152,12 @@ The following steps describe how you can set up your own instance of the app. An
 
 5.  **Update Environment Variables**: Rename the `.env.template` file to `.env` and add the `NOTION_TOKEN` and `NOTION_DATABASE_ID` you noted earlier.
 
+    ```toml
+    # .env
+    NOTION_TOKEN="..."        # Internal integration secret
+    NOTION_DATABASE_ID="..."  # Notion database ID
+    ```
+
 6.  **Deploy Project**: Run `cdk deploy` to deploy the project. Note the API URL and API key from the output.
 
     ```sh
