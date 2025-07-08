@@ -2,7 +2,7 @@
 
 ![Lambdalet.AI](./images/banner.jpeg)
 
-Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a dynamic javascript bookmark - a so called bookmarklet - to send the current page's HTML to an AWS Lambda function. The Lambda function invokes a Large Language Model on Bedrock to extract the page's main content - ignoring headers, footers and other non-content elements - and saves it to a Notion database. The Notion database stores all our bookmarks and allows us to find bookmarks by title, URL and even their content.
+Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a dynamic javascript bookmark - a so called [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) - to send the current page's HTML to an AWS Lambda function. The Lambda function invokes a Large Language Model on Bedrock to extract the page's main content - ignoring headers, footers and other non-content elements - and saves it to a Notion database. The Notion database stores all our bookmarks and allows us to find bookmarks by title, URL and even their content.
 
 ## Try It
 
