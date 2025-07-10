@@ -1,6 +1,6 @@
 # Lambdalet.AI
 
-![Lambdalet.AI](./images/banner.jpeg)
+![Lambdalet.AI](images/banner.jpeg)
 
 Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a dynamic javascript bookmark - a so called [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) - to send the current page's HTML to an AWS Lambda function. The Lambda function invokes a Large Language Model on Bedrock to extract the page's main content - ignoring headers, footers and other non-content elements - and saves it to a Notion database. The Notion database stores all our bookmarks and allows us to find bookmarks by title, URL and even their content.
 
@@ -179,4 +179,6 @@ The following steps describe how you can set up your own instance of the app. An
 -   **OpenGraph Metadata**: Extract OpenGraph metadata from the page and save it as properties on the Notion page.
 -   **AI Summaries**: Create an AI-generated summary of the page's content.
 -   **Pre-Bookmark Editing**: Allow editing content before saving it to the database.
+-   **CSP Fallback**: Check the CSP headers and use `window.open` with only the URL as fallback if all other methods are blocked.
+-   **Step Functions**: Split the processing Lambda into a StepFunction state machine and use the Bedrock integration to extract the main content.
 -   **Additional Integrations**: Add support for other applications like Obsidian or Roam Research.
