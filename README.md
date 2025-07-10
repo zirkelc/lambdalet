@@ -1,6 +1,6 @@
 # Lambdalet.AI
 
-![Lambdalet.AI](images/banner.jpeg)
+![Lambdalet.AI](https://github.com/zirkelc/lambdalet/blob/2b5db5984ecd55c90de6953b973122406a5d2e6f/images/banner.jpeg)
 
 Lambdalet.AI (*Lambda* + ~~bookmark~~*let*) is an AI-powered bookmarking and read-it-later service. It uses a dynamic javascript bookmark - a so called [bookmarklet](https://en.wikipedia.org/wiki/Bookmarklet) - to send the current page's HTML to an AWS Lambda function. The Lambda function invokes a Large Language Model on Bedrock to extract the page's main content - ignoring headers, footers and other non-content elements - and saves it to a Notion database. The Notion database stores all our bookmarks and allows us to find bookmarks by title, URL and even their content.
 
