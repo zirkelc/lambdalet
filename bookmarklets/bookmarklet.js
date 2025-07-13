@@ -1,65 +1,80 @@
 javascript: (async () => {
-  const apiKey = 'W76GK763928L8g8TcMdMU8Dw2rQ4EZwv3eqf4Yp0';
-  const apiUrl = 'https://paip1r3t7j.execute-api.eu-west-1.amazonaws.com/prod/';
-  const url = `${apiUrl}?apiKey=${apiKey}`;
+	const apiKey = 'W76GK763928L8g8TcMdMU8Dw2rQ4EZwv3eqf4Yp0';
+	const apiUrl = 'https://paip1r3t7j.execute-api.eu-west-1.amazonaws.com/prod/';
+	const url = `${apiUrl}?apiKey=${apiKey}`;
 
-  function getSelectedHTML() {
-    if (window.getSelection) {
-      const selection = window.getSelection();
-      if (selection.rangeCount) {
-        const container = document.createElement('div');
-        for (let i = 0; i < selection.rangeCount; ++i) {
-          container.appendChild(selection.getRangeAt(i).cloneContents());
-        }
-        return container.innerHTML;
-      }
-    }
-    if (document.selection && document.selection.type === 'Text') {
-      return document.selection.createRange().htmlText;
-    }
+	let hasCspViolation = false;
+	document.addEventListener('securitypolicyviolation', (event) => {
+		hasCspViolation = true;
+		console.error('CSP violation:', event);
+	});
 
-    return undefined;
-  }
+	function getSelectedHTML() {
+		if (window.getSelection) {
+			const selection = window.getSelection();
+			if (selection.rangeCount) {
+				const container = document.createElement('div');
+				for (let i = 0; i < selection.rangeCount; ++i) {
+					container.appendChild(selection.getRangeAt(i).cloneContents());
+				}
+				return container.innerHTML;
+			}
+		}
+		if (document.selection && document.selection.type === 'Text') {
+			return document.selection.createRange().htmlText;
+		}
 
-  const selectedHTML = getSelectedHTML();
-  const hasSelection = !!selectedHTML;
+		return undefined;
+	}
 
-  const data = {
-    html: hasSelection ? selectedHTML : document.body.innerHTML,
-    mode: hasSelection ? 'selection' : 'document',
-    url: window.location.href,
-    title: document.title,
-  };
+	const selectedHTML = getSelectedHTML();
+	const hasSelection = !!selectedHTML;
 
-  try {
-    await fetch(url, {
-      method: 'POST',
-      body: new FormData({
-        ...data,
-        invoke: 'fetch',
-      }),
-    });
-  } catch (error) {
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = url;
-    form.target = '_blank';
-    document.body.appendChild(form);
+	const data = {
+		html: hasSelection ? selectedHTML : document.body.innerHTML,
+		mode: hasSelection ? 'selection' : 'document',
+		url: window.location.href,
+		title: document.title,
+	};
 
-    Object.entries({
-      ...data,
-      invoke: 'form-blank',
-    }).forEach(([key, value]) => {
-      const input = document.createElement('input');
-      input.type = 'hidden';
-      input.name = key;
-      input.value = value;
-      form.appendChild(input);
-    });
+	try {
+		await fetch(url, {
+			method: 'POST',
+			body: new FormData({
+				...data,
+				invoke: 'fetch',
+			}),
+		});
+	} catch (error) {
+		const form = document.createElement('form');
+		form.method = 'POST';
+		form.action = url;
+		form.target = '_blank';
+		document.body.appendChild(form);
 
-    form.submit();
+		Object.entries({
+			...data,
+			invoke: 'form-blank',
+		}).forEach(([key, value]) => {
+			const input = document.createElement('input');
+			input.type = 'hidden';
+			input.name = key;
+			input.value = value;
+			form.appendChild(input);
+		});
 
-    document.body.removeChild(form);
-  }
-  alert(`Saved ${hasSelection ? 'text selection' : 'full page'} to Lambdalet.AI`);
+		form.submit();
+
+		document.body.removeChild(form);
+
+		setTimeout(() => {
+			if (hasCspViolation) {
+				alert('Could not save to Lambdalet.AI due CSP violation');
+			} else {
+				alert(
+					`Saved ${hasSelection ? 'text selection' : 'full page'} to Lambdalet.AI`,
+				);
+			}
+		}, 100);
+	}
 })();
