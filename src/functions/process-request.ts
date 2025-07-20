@@ -43,14 +43,10 @@ export const handler = middy()
 
 			logger.info(`Downloaded request payload from S3: s3://${bucket}/${key}`);
 
-			const { html, url, title, mode } = request;
+			const { url, title, mode } = request;
+			let { html } = request;
 
 			logger.info(`Processing request: ${url}`);
-
-			/**
-			 * Convert the HTML to Markdown.
-			 */
-			let markdown = toMarkdown({ html, url });
 
 			/**
 			 * Create a new page in Notion.
@@ -61,6 +57,26 @@ export const handler = middy()
 			});
 
 			logger.info(`Created page in Notion: ${pageId}`);
+
+			/**
+			 * Fetch the HTML if it's not provided.
+			 */
+			if (!html) {
+				try {
+					logger.info(`Fetching HTML from ${url}`);
+					const response = await fetch(url);
+					html = await response.text();
+					logger.info(`Fetched HTML from ${url}`);
+				} catch (error) {
+					logger.error(`Failed to fetch HTML from ${url}`, { error });
+					return;
+				}
+			}
+
+			/**
+			 * Convert the HTML to Markdown.
+			 */
+			let markdown = toMarkdown({ html, url });
 
 			/**
 			 * Try to extract the main content from the markdown.
@@ -82,6 +98,8 @@ export const handler = middy()
 						markdown,
 						url,
 					});
+
+					// TODO add error as comment to the page
 
 					/**
 					 * Set the status to failed.

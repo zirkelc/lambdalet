@@ -1,10 +1,10 @@
+import { createHash } from 'node:crypto';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
 import { ApiGatewayEnvelope } from '@aws-lambda-powertools/parser/envelopes';
 import { parser } from '@aws-lambda-powertools/parser/middleware';
 import middy from '@middy/core';
 import type { APIGatewayProxyResult } from 'aws-lambda';
-import { createHash, randomUUID } from 'node:crypto';
 import z from 'zod';
 import { putObject } from '../libs/s3.js';
 import { sendMessage } from '../libs/sqs.js';
@@ -69,7 +69,7 @@ const formUrlEncoded = <T extends z.ZodTypeAny>(schema: T) =>
 			try {
 				const params = new URLSearchParams(str);
 				return Object.fromEntries(params.entries());
-			} catch (err) {
+			} catch {
 				ctx.addIssue({
 					code: 'custom',
 					message: 'Invalid form data',
@@ -149,10 +149,12 @@ export const handler = middy()
 		 * Depending how the request was made, we need to return a different response.
 		 * - form-blank: The request was submitted as form in a new tab (target="_blank"), so we return a self-closing window.
 		 * - form-self: The request was submitted as form in the same tab (target="_self"), so we redirect back to the original URL.
+		 * - window-open: The request was opened via window.open fallback, so we return a self-closing window.
 		 * - fetch: The request was submitted as fetch, so we return a 200 OK.
 		 */
 		if (invoke === 'form-blank') return closeWindow();
 		if (invoke === 'form-self') return redirect(url);
+		if (invoke === 'window-open') return closeWindow();
 
 		return ok();
 	});

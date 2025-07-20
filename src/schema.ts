@@ -7,10 +7,12 @@ import { z } from 'zod';
 export type ApiGatewayRequest = z.infer<typeof ApiGatewayRequestSchema>;
 export const ApiGatewayRequestSchema = z.object({
 	url: z.string().url(),
-	html: z.string(),
+	html: z.string().optional(),
 	title: z.string(),
 	mode: z.enum(['document', 'selection']).default('document'),
-	invoke: z.enum(['fetch', 'form-blank', 'form-self']).default('fetch'),
+	invoke: z
+		.enum(['fetch', 'form-blank', 'form-self', 'window-open'])
+		.default('fetch'),
 });
 
 /**
