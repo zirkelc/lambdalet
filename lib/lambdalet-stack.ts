@@ -178,6 +178,11 @@ export class LambdaletStack extends cdk.Stack {
 			identitySources: ['method.request.querystring.apiKey'],
 		});
 
+		api.root.addMethod('GET', new LambdaIntegration(queueRequestLambda), {
+			authorizer,
+			apiKeyRequired: true,
+			authorizationType: AuthorizationType.CUSTOM,
+		});
 		api.root.addMethod('POST', new LambdaIntegration(queueRequestLambda), {
 			authorizer,
 			apiKeyRequired: true,

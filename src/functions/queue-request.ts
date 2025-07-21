@@ -9,10 +9,12 @@ import z from 'zod';
 import { putObject } from '../libs/s3.js';
 import { sendMessage } from '../libs/sqs.js';
 import {
+	type ApiGatewayRequest,
 	ApiGatewayRequestSchema,
 	AwsEnvSchema,
 	type SqsMessage,
 } from '../schema.js';
+import { APIGatewayProxyEventSchema } from '@aws-lambda-powertools/parser/schemas';
 
 const logger = new Logger();
 
@@ -78,6 +80,11 @@ const formUrlEncoded = <T extends z.ZodTypeAny>(schema: T) =>
 		})
 		.pipe(schema);
 
+const decodeFormData = (body: string) => {
+	const params = new URLSearchParams(body);
+	return Object.fromEntries(params.entries());
+};
+
 /**
  * This function receives the request from the API Gateway and queues it for processing.
  * The payload is uploaded to S3 and a reference to the object is sent to SQS.
@@ -87,18 +94,23 @@ export const handler = middy()
 	.use(injectLambdaContext(logger, { logEvent: true }))
 	.use(
 		parser({
-			schema: formUrlEncoded(ApiGatewayRequestSchema),
-			envelope: ApiGatewayEnvelope,
+			schema: APIGatewayProxyEventSchema,
 		}),
 	)
-	.handler(async (request): Promise<APIGatewayProxyResult> => {
+	.handler(async (event): Promise<APIGatewayProxyResult> => {
 		/**
 		 * Parse AWS resources from the environment variables.
 		 */
 		const env = AwsEnvSchema.parse(process.env);
 
+		const request =
+			event.httpMethod === 'POST'
+				? ApiGatewayRequestSchema.parse(decodeFormData(event.body ?? ''))
+				: ApiGatewayRequestSchema.parse(event.queryStringParameters ?? {});
+
 		const bucket = env.BUCKET_NAME;
 		const queueUrl = env.QUEUE_URL;
+
 		const { url, invoke } = request;
 
 		/**
@@ -114,7 +126,7 @@ export const handler = middy()
 		/**
 		 * Upload the request payload to S3, because SQS has a limit of 256KB for the message body.
 		 */
-		await putObject({
+		await putObject<ApiGatewayRequest>({
 			bucket,
 			key,
 			object: request,
