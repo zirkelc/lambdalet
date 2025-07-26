@@ -30,6 +30,7 @@ export const SqsMessageSchema = z.object({
 export const AwsEnvSchema = z.object({
 	BUCKET_NAME: z.string(),
 	QUEUE_URL: z.string(),
+	FETCH_QUEUE_URL: z.string(),
 });
 
 /**

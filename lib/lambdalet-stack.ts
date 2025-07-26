@@ -52,10 +52,19 @@ export class LambdaletStack extends cdk.Stack {
 		});
 
 		/**
-		 * SQS queue to deduplicate requests.
+		 * SQS queue to deduplicate and process requests.
 		 */
-		const queue = new sqs.Queue(this, 'lambdalet-queue', {
-			queueName: 'lambdalet-queue.fifo',
+		const requestQueue = new sqs.Queue(this, 'lambdalet-request-queue', {
+			queueName: 'lambdalet-request-queue.fifo',
+			fifo: true,
+			visibilityTimeout: timeout,
+		});
+
+		/**
+		 * SQS queue for fetch requests.
+		 */
+		const fetchQueue = new sqs.Queue(this, 'lambdalet-fetch-queue', {
+			queueName: 'lambdalet-fetch-queue.fifo',
 			fifo: true,
 			visibilityTimeout: timeout,
 		});
@@ -102,7 +111,39 @@ export class LambdaletStack extends cdk.Stack {
 		 * Trigger the Lambda function with a batch size of 1 to avoid timeouts.
 		 */
 		processRequestLambda.addEventSource(
-			new SqsEventSource(queue, { batchSize: 1 }),
+			new SqsEventSource(requestQueue, { batchSize: 1 }),
+		);
+
+		/**
+		 * Lambda function that fetches HTML for requests without HTML content.
+		 */
+		const fetchRequestLambda = new NodejsFunction(
+			this,
+			'lambdalet-fetch-request',
+			{
+				functionName: 'lambdalet-fetch-request',
+				entry: 'src/functions/fetch-request.ts',
+				handler: 'handler',
+				runtime: Runtime.NODEJS_22_X,
+				timeout: Duration.minutes(5),
+				memorySize: 512,
+				environment: {
+					NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
+					BUCKET_NAME: bucket.bucketName,
+					QUEUE_URL: requestQueue.queueUrl,
+					FETCH_QUEUE_URL: fetchQueue.queueUrl,
+				},
+				bundling: {
+					format: OutputFormat.ESM,
+				},
+			},
+		);
+
+		/**
+		 * Trigger the fetch Lambda function with a batch size of 1.
+		 */
+		fetchRequestLambda.addEventSource(
+			new SqsEventSource(fetchQueue, { batchSize: 1 }),
 		);
 
 		/**
@@ -121,7 +162,8 @@ export class LambdaletStack extends cdk.Stack {
 				environment: {
 					NODE_OPTIONS: '--enable-source-maps --stack-trace-limit=1000',
 					BUCKET_NAME: bucket.bucketName,
-					QUEUE_URL: queue.queueUrl,
+					QUEUE_URL: requestQueue.queueUrl,
+					FETCH_QUEUE_URL: fetchQueue.queueUrl,
 				},
 				bundling: {
 					format: OutputFormat.ESM,
@@ -154,8 +196,12 @@ export class LambdaletStack extends cdk.Stack {
 		bucket.grantRead(processRequestLambda);
 		bucket.grantWrite(queueRequestLambda);
 		bucket.grantWrite(processRequestLambda);
-		queue.grantConsumeMessages(processRequestLambda);
-		queue.grantSendMessages(queueRequestLambda);
+		bucket.grantReadWrite(fetchRequestLambda);
+		requestQueue.grantConsumeMessages(processRequestLambda);
+		requestQueue.grantSendMessages(queueRequestLambda);
+		requestQueue.grantSendMessages(fetchRequestLambda);
+		fetchQueue.grantConsumeMessages(fetchRequestLambda);
+		fetchQueue.grantSendMessages(queueRequestLambda);
 
 		/**
 		 * API Gateway API invoked by the bookmarklet.
@@ -218,6 +264,7 @@ fields @timestamp, @message, @logStream, @log
 			logGroupNames: [
 				processRequestLambda.logGroup.logGroupName,
 				queueRequestLambda.logGroup.logGroupName,
+				fetchRequestLambda.logGroup.logGroupName,
 				apiAuthorizerLambda.logGroup.logGroupName,
 			],
 		});
@@ -231,6 +278,7 @@ fields @timestamp, @message, @logStream, @log
 			logGroupNames: [
 				processRequestLambda.logGroup.logGroupName,
 				queueRequestLambda.logGroup.logGroupName,
+				fetchRequestLambda.logGroup.logGroupName,
 				apiAuthorizerLambda.logGroup.logGroupName,
 			],
 		});

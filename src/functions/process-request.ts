@@ -6,7 +6,12 @@ import { parser } from '@aws-lambda-powertools/parser/middleware';
 import middy from '@middy/core';
 import { extractMainContent } from '../libs/bedrock.js';
 import { toMarkdown } from '../libs/markdown.js';
-import { addContent, createPage, updateStatus } from '../libs/notion.js';
+import {
+	addComment,
+	addContent,
+	createPage,
+	updateStatus,
+} from '../libs/notion.js';
 import { getObject } from '../libs/s3.js';
 import { ApiGatewayRequestSchema, SqsMessageSchema } from '../schema.js';
 
@@ -43,8 +48,7 @@ export const handler = middy()
 
 			logger.info(`Downloaded request payload from S3: s3://${bucket}/${key}`);
 
-			const { url, title, mode } = request;
-			let { html } = request;
+			const { url, title, mode, html } = request;
 
 			logger.info(`Processing request: ${url}`);
 
@@ -59,18 +63,23 @@ export const handler = middy()
 			logger.info(`Created page in Notion: ${pageId}`);
 
 			/**
-			 * Fetch the HTML if it's not provided.
+			 * HTML should always be present at this point.
+			 * If it's missing, log an error and skip processing.
 			 */
 			if (!html) {
-				try {
-					logger.info(`Fetching HTML from ${url}`);
-					const response = await fetch(url);
-					html = await response.text();
-					logger.info(`Fetched HTML from ${url}`);
-				} catch (error) {
-					logger.error(`Failed to fetch HTML from ${url}`, { error });
-					return;
-				}
+				logger.error(`HTML is missing for request: ${url}`);
+
+				await addComment({
+					pageId,
+					comment: `❌ Processing failed: HTML content is missing for ${url}. This typically indicates an issue with the HTML fetching process.`,
+				});
+
+				await updateStatus({
+					pageId,
+					status: 'Failed',
+				});
+
+				return;
 			}
 
 			/**
@@ -99,17 +108,12 @@ export const handler = middy()
 						url,
 					});
 
-					// TODO add error as comment to the page
-
-					/**
-					 * Set the status to failed.
-					 */
-					await updateStatus({
+					await addComment({
 						pageId,
-						status: 'Failed',
+						comment: `⚠️ Content extraction failed: Unable to extract main content from ${url} using AI processing. Falling back to raw content. Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
 					});
 
-					logger.info(`Updated status to failed`);
+					logger.info(`Content extraction failed, will use raw markdown as fallback`);
 				}
 			}
 

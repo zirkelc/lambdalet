@@ -238,3 +238,28 @@ export const updateStatus = async ({ pageId, status }: UpdateStatus) => {
 		},
 	});
 };
+
+type AddComment = {
+	pageId: string;
+	comment: string;
+};
+
+/**
+ * Add a comment to the page.
+ */
+export const addComment = async ({ pageId, comment }: AddComment) => {
+	const { notion } = createClient();
+
+	await notion.comments.create({
+		parent: {
+			page_id: pageId,
+		},
+		rich_text: [
+			{
+				text: {
+					content: comment,
+				},
+			},
+		],
+	});
+};

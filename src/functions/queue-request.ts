@@ -1,20 +1,19 @@
-import { createHash } from 'node:crypto';
 import { Logger } from '@aws-lambda-powertools/logger';
 import { injectLambdaContext } from '@aws-lambda-powertools/logger/middleware';
-import { ApiGatewayEnvelope } from '@aws-lambda-powertools/parser/envelopes';
 import { parser } from '@aws-lambda-powertools/parser/middleware';
+import { APIGatewayProxyEventSchema } from '@aws-lambda-powertools/parser/schemas';
 import middy from '@middy/core';
 import type { APIGatewayProxyResult } from 'aws-lambda';
+import { createHash } from 'node:crypto';
 import z from 'zod';
 import { putObject } from '../libs/s3.js';
-import { sendMessage } from '../libs/sqs.js';
+import { createMessageId, sendMessage } from '../libs/sqs.js';
 import {
 	type ApiGatewayRequest,
 	ApiGatewayRequestSchema,
 	AwsEnvSchema,
 	type SqsMessage,
 } from '../schema.js';
-import { APIGatewayProxyEventSchema } from '@aws-lambda-powertools/parser/schemas';
 
 const logger = new Logger();
 
@@ -110,15 +109,11 @@ export const handler = middy()
 
 		const bucket = env.BUCKET_NAME;
 		const queueUrl = env.QUEUE_URL;
+		const fetchQueueUrl = env.FETCH_QUEUE_URL;
 
-		const { url, invoke } = request;
+		const { url, invoke, html } = request;
 
-		/**
-		 * Hash the URL to create a deterministic key for the S3 object and SQS deduplication ID.
-		 * Using the plain URL as key could exceed the 1024 character limit for the S3 key and 128 character limit for the SQS deduplication ID.
-		 */
-		const hash = createHash('sha256').update(url).digest('hex');
-
+		const hash = createMessageId(url);
 		logger.info(`Hashed URL: ${hash}`, { url, hash });
 
 		const key = `${hash}.json`;
@@ -138,24 +133,53 @@ export const handler = middy()
 		});
 
 		/**
-		 * Send the request to SQS to deduplicate the request and process it asynchronously.
-		 * Using the hash as the group ID will allow multiple requests to be processed in parallel,
-		 * but the deduplication ID will still ensure that the same request (URL) is processed only once.
+		 * Route the request based on whether HTML is present.
+		 * If HTML is missing (typically GET requests), send to fetch queue first.
+		 * Otherwise, send directly to main processing queue.
 		 */
-		const messageId = await sendMessage<SqsMessage>({
-			queueUrl,
-			groupId: hash,
-			deduplicationId: hash,
-			message: {
-				bucket,
-				key,
-			},
-		});
+		let messageId: string;
 
-		logger.info(`Sent message to SQS: ${queueUrl}/${messageId}`, {
-			queueUrl,
-			messageId,
-		});
+		if (!html) {
+			/**
+			 * Send to fetch queue for HTML retrieval.
+			 */
+			messageId = await sendMessage<SqsMessage>({
+				queueUrl: fetchQueueUrl,
+				groupId: hash,
+				deduplicationId: hash,
+				message: {
+					bucket,
+					key,
+				},
+			});
+			logger.info(
+				`Sent message to fetch queue: ${fetchQueueUrl}/${messageId}`,
+				{
+					queueUrl: fetchQueueUrl,
+					messageId,
+				},
+			);
+		} else {
+			/**
+			 * Send directly to main processing queue.
+			 */
+			messageId = await sendMessage<SqsMessage>({
+				queueUrl,
+				groupId: hash,
+				deduplicationId: hash,
+				message: {
+					bucket,
+					key,
+				},
+			});
+			logger.info(
+				`Sent message to main processing queue: ${queueUrl}/${messageId}`,
+				{
+					queueUrl,
+					messageId,
+				},
+			);
+		}
 
 		/**
 		 * Depending how the request was made, we need to return a different response.
